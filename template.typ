@@ -1,14 +1,8 @@
 // Store theorem environment numbering
-#let thmcounters = state("thm",
-  (
-    "counters": ("heading": ()),
-    "latest": ()
-  )
-)
+#let thmcounters = state("thm", ("counters": ("heading": ()), "latest": ()))
 
 // Setting theorem environment
 #let thmenv(identifier, base, base_level, fmt) = {
-
   let global_numbering = numbering
 
   return (
@@ -19,7 +13,7 @@
     refnumbering: auto,
     supplement: identifier,
     base: base,
-    base_level: base_level
+    base_level: base_level,
   ) => {
     let name = none
     if args != none and args.pos().len() > 0 {
@@ -39,7 +33,7 @@
           // Manually update heading counter
           counters.at("heading") = counter(heading).at(loc)
           if not identifier in counters.keys() {
-            counters.insert(identifier, (0, ))
+            counters.insert(identifier, (0,))
           }
 
           let tc = counters.at(identifier)
@@ -50,7 +44,7 @@
             if base_level != none {
               if bc.len() < base_level {
                 bc = bc + (0,) * (base_level - bc.len())
-              } else if bc.len() > base_level{
+              } else if bc.len() > base_level {
                 bc = bc.slice(0, base_level)
               }
             }
@@ -68,10 +62,7 @@
           }
 
           let latest = counters.at(identifier)
-          return (
-            "counters": counters,
-            "latest": latest
-          )
+          return ("counters": counters, "latest": latest)
         })
       })
 
@@ -81,9 +72,8 @@
     }
 
     return figure(
-      result +  // hacky!
-      fmt(name, number, body, ..args.named()) +
-      [#metadata(identifier) <meta:thmenvcounter>],
+      result + // hacky!
+        fmt(name, number, body, ..args.named()) + [#metadata(identifier) <meta:thmenvcounter>],
       kind: "thmenv",
       outlined: false,
       caption: none,
@@ -112,7 +102,7 @@
   }
   let boxfmt(name, number, body, title: auto) = {
     if not name == none {
-      name = [ #namefmt(name)]
+      name = [ #namefmt(name) ]
     } else {
       name = []
     }
@@ -124,26 +114,16 @@
     }
     title = titlefmt(title)
     body = bodyfmt(body)
-    pad(
-      ..padding,
-      block(
-        width: 100%,
-        inset: 1.2em,
-        radius: 0.3em,
-        breakable: false,
-        ..blockargs.named(),
-        [#title#name#separator#body]
-      )
-    )
+    pad(..padding, block(
+      width: 100%,
+      inset: 1.2em,
+      radius: 0.3em,
+      breakable: false,
+      ..blockargs.named(),
+      [#align(left)[#title#separator#name#body]],
+    ))
   }
-  return thmenv(
-    identifier,
-    base,
-    base_level,
-    boxfmt
-  ).with(
-    supplement: supplement,
-  )
+  return thmenv(identifier, base, base_level, boxfmt).with(supplement: supplement)
 }
 
 // Setting plain version
@@ -208,175 +188,26 @@
 }
 
 // Definition of abstruct page
-#let abstract_page(abstract_ja, abstract_en, keywords_ja: (), keywords_en: ()) = {
-  if abstract_ja != [] {
-    show <_ja_abstract_>: {
+#let abstract_page(abstract, keywords: ()) = {
+  if abstract != [] {
+    show <_abstract_>: {
       align(center)[
         #text(size: 20pt, "概要")
       ]
     }
-    [= 概要 <_ja_abstract_>]
+    [= 概要 <_abstract_>]
 
     v(30pt)
     set text(size: 12pt)
     h(1em)
-    abstract_ja
+    abstract
     par(first-line-indent: 0em)[
       #text(weight: "bold", size: 12pt)[
-      キーワード:
-      #keywords_ja.join(", ")
-      ]
-    ]
-  } else {
-    show <_en_abstract_>: {
-      align(center)[
-        #text(size: 18pt, "Abstruct")
-      ]
-    }
-    [= Abstract <_en_abstract_>]
-
-    set text(size: 12pt)
-    h(1em)
-    abstract_en
-    par(first-line-indent: 0em)[
-      #text(weight: "bold", size: 12pt)[
-        Key Words: 
-        #keywords_en.join("; ")
+        キーワード:
+        #keywords.join(", ")
       ]
     ]
   }
-}
-
-// Definition of content to string
-#let to-string(content) = {
-  if content.has("text") {
-    content.text
-  } else if content.has("children") {
-    content.children.map(to-string).join("")
-  } else if content.has("body") {
-    to-string(content.body)
-  } else if content == [ ] {
-    " "
-  }
-}
-
-// Definition of chapter outline
-#let toc() = {
-  align(left)[
-    #text(size: 20pt, weight: "bold")[
-      #v(30pt)
-      目次
-      #v(30pt)
-    ]
-  ]
-
-  set text(size: 12pt)
-  set par(leading: 1.24em, first-line-indent: 0pt)
-  locate(loc => {
-    let elements = query(heading.where(outlined: true), loc)
-    for el in elements {
-      let before_toc = query(heading.where(outlined: true).before(loc), loc).find((one) => {one.body == el.body}) != none
-      let page_num = if before_toc {
-        numbering("i", counter(page).at(el.location()).first())
-      } else {
-        counter(page).at(el.location()).first()
-      }
-
-      link(el.location())[#{
-        // acknoledgement has no numbering
-        let chapt_num = if el.numbering != none {
-          numbering(el.numbering, ..counter(heading).at(el.location()))
-        } else {none}
-
-        if el.level == 1 {
-          set text(weight: "black")
-          if chapt_num == none {} else {
-            chapt_num
-            "  "
-          }
-          let rebody = to-string(el.body)
-          rebody
-        } else if el.level == 2 {
-          h(2em)
-          chapt_num
-          " "
-          let rebody = to-string(el.body)
-          rebody
-        } else {
-          h(5em)
-          chapt_num
-          " "
-          let rebody = to-string(el.body)
-          rebody
-        }
-      }]
-      box(width: 1fr, h(0.5em) + box(width: 1fr, repeat[.]) + h(0.5em))
-      [#page_num]
-      linebreak()
-    }
-  })
-}
-
-// Definition of image outline
-#let toc_img() = {
-  align(left)[
-    #text(size: 20pt, weight: "bold")[
-      #v(30pt)
-      図目次
-      #v(30pt)
-    ]
-  ]
-
-  set text(size: 12pt)
-  set par(leading: 1.24em, first-line-indent: 0pt)
-  locate(loc => {
-    let elements = query(figure.where(outlined: true, kind: "image"), loc)
-    for el in elements {
-      let chapt = counter(heading).at(el.location()).at(0)
-      let num = counter(el.kind + "-chapter" + str(chapt)).at(el.location()).at(0) + 1
-      let page_num = counter(page).at(el.location()).first()
-      let caption_body = to-string(el.caption.body)
-      str(chapt)
-      "."
-      str(num)
-      h(1em)
-      caption_body
-      box(width: 1fr, h(0.5em) + box(width: 1fr, repeat[.]) + h(0.5em))
-      [#page_num]
-      linebreak()
-    }
-  })
-}
-
-// Definition of table outline
-#let toc_tbl() = {
-  align(left)[
-    #text(size: 20pt, weight: "bold")[
-      #v(30pt)
-      表目次
-      #v(30pt)
-    ]
-  ]
-
-  set text(size: 12pt)
-  set par(leading: 1.24em, first-line-indent: 0pt)
-   locate(loc => {
-    let elements = query(figure.where(outlined: true, kind: "table"), loc)
-    for el in elements {
-      let chapt = counter(heading).at(el.location()).at(0)
-      let num = counter(el.kind + "-chapter" + str(chapt)).at(el.location()).at(0) + 1
-      let page_num = counter(page).at(el.location()).first()
-      let caption_body = to-string(el.caption.body)
-      str(chapt)
-      "."
-      str(num)
-      h(1em)
-      caption_body
-      box(width: 1fr, h(0.5em) + box(width: 1fr, repeat[.]) + h(0.5em))
-      [#page_num]
-      linebreak()
-    }
-  })
 }
 
 // Setting empty par
@@ -386,38 +217,22 @@
 }
 
 // Construction of paper
-#let master_thesis(
+#let thesis_template(
   // The master thesis title.
-  title: "ここにtitleが入る",
-
+  title: str,
   // The paper`s author.
-  author: "ここに著者が入る",
-
+  author: str,
   // The author's information
-  university: "",
-  school: "",
-  department: "",
-  id: "",
-  mentor: "",
-  mentor-post: "",
-  class: "修士",
-  date: (datetime.today().year(), datetime.today().month(), datetime.today().day()),
-
-  paper-type: "論文",
-
+  affiliation: str,
+  date: datetime,
   // Abstruct
-  abstract_ja: [],
-  abstract_en: [],
-  keywords_ja: (),
-  keywords_en: (),
-
+  abstract: array,
+  keywords: (),
   // The paper size to use.
   paper-size: "a4",
-
   // The path to a bibliography file if you want to cite some external
   // works.
   bibliography-file: none,
-
   // The paper's content.
   body,
 ) = {
@@ -428,8 +243,10 @@
       let loc = el.location()
       let chapt = counter(heading).at(loc).at(0)
 
-      link(loc)[#if el.kind == "image" or el.kind == "table" {
-          // counting 
+      link(
+        loc,
+      )[#if el.kind == "image" or el.kind == "table" {
+          // counting
           let num = counter(el.kind + "-chapter" + str(chapt)).at(loc).at(0) + 1
           it.element.supplement
           " "
@@ -515,74 +332,54 @@
   // to Palatino.
   set text(font: (
     "Nimbus Roman",
-    // "Hiragino Mincho ProN",
+    "Hiragino Mincho ProN",
     // "MS Mincho",
-    "Noto Serif CJK JP",
-    ), size: 12pt)
+    // "Noto Serif CJK JP",
+  ), size: 12pt)
 
   // Configure the page properties.
-  set page(
-    paper: paper-size,
-    margin: (bottom: 1.75cm, top: 2.25cm),
-  )
+  set page(paper: paper-size, margin: (bottom: 1.75cm, top: 2.25cm))
 
   // The first page.
-  align(center)[
+  align(
+    center,
+  )[
     #v(80pt)
-    #text(
-      size: 16pt,
-    )[
-      #university #school #department
+    #text(size: 16pt)[
+      #affiliation
     ]
 
-    #text(
-      size: 16pt,
-    )[
-      #class#paper-type
-    ]
     #v(40pt)
-    #text(
-      size: 22pt,
-    )[
+    #text(size: 22pt)[
       #title
     ]
     #v(50pt)
-    #text(
-      size: 16pt,
-    )[
-      #id #author
+    #text(size: 16pt)[
+      #author
     ]
 
-    #text(
-      size: 16pt,
-    )[
-      指導教員: #mentor #mentor-post
-    ]
     #v(40pt)
     #text(
       size: 16pt,
     )[
-      #date.at(0) 年 #date.at(1) 月 #date.at(2) 日 提出
+      #date.display("[year padding:none]年 [month padding:none]月 [day padding:none]日")
     ]
     #pagebreak()
   ]
 
-  set page(
-    footer: [
-      #align(center)[#counter(page).display("i")]
-    ]
-  )
+  set page(footer: [
+    #align(center)[#counter(page).display("i")]
+  ])
 
   counter(page).update(1)
   // Show abstruct
-  abstract_page(abstract_ja, abstract_en, keywords_ja: keywords_ja, keywords_en: keywords_en)
-  pagebreak()
+  abstract_page(abstract, keywords: keywords)
 
   // Configure paragraph properties.
   set par(leading: 0.78em, first-line-indent: 12pt, justify: true)
   show par: set block(spacing: 0.78em)
 
-   // Configure chapter headings.
+  // Configure chapter headings.
   set heading(numbering: (..nums) => {
     nums.pos().map(str).join(".") + " "
   })
@@ -592,13 +389,13 @@
     set text(weight: "bold", size: 20pt)
     set block(spacing: 1.5em)
     let pre_chapt = if it.numbering != none {
-          text()[
-            #v(50pt)
-            第
-            #numbering(it.numbering, ..counter(heading).at(it.location()))
-            章
-          ] 
-        } else {none}
+      text()[
+        #v(50pt)
+        第
+        #numbering(it.numbering, ..counter(heading).at(it.location()))
+        章
+      ]
+    } else { none }
     text()[
       #pre_chapt \
       #it.body \
@@ -617,22 +414,14 @@
     it
   } + empty_par()
 
-
   // Start with a chapter outline.
-  toc()
-  pagebreak()
-  toc_img()
-  pagebreak()
-  toc_tbl()
-
-  set page(
-    footer: [
-      #align(center)[#counter(page).display("1")]
-    ]
-  )
+  outline(title: "目次")
+  set page(footer: [
+    #align(center)[#counter(page).display("1")]
+  ])
 
   counter(page).update(1)
- 
+
   set math.equation(supplement: [式], numbering: equation_num)
 
   body
@@ -640,23 +429,6 @@
   // Display bibliography.
   if bibliography-file != none {
     show bibliography: set text(12pt)
-    bibliography(bibliography-file, title: "参考文献", style: "ieee")
+    bibliography(bibliography-file, title: "参考文献", style: "american-physics-society")
   }
-}
-
-// LATEX character
-#let LATEX = {
-  [L];box(move(
-    dx: -4.2pt, dy: -1.2pt,
-    box(scale(65%)[A])
-  ));box(move(
-  dx: -5.7pt, dy: 0pt,
-  [T]
-));box(move(
-  dx: -7.0pt, dy: 2.7pt,
-  box(scale(100%)[E])
-));box(move(
-  dx: -8.0pt, dy: 0pt,
-  [X]
-));h(-8.0pt)
 }
