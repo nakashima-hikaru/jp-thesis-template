@@ -120,7 +120,7 @@
       radius: 0.3em,
       breakable: false,
       ..blockargs.named(),
-      [#align(left)[#title#separator#name#body]],
+      [#align(left)[#title#separator#name]#align(left)[#body]],
     ))
   }
   return thmenv(identifier, base, base_level, boxfmt).with(supplement: supplement)
@@ -331,12 +331,13 @@
   // Set the body font. TeX Gyre Pagella is a free alternative
   // to Palatino.
   set text(font: (
-    "Nimbus Roman",
+    // "Nimbus Roman",
+    "Linux Libertine",
     "Hiragino Mincho ProN",
     // "MS Mincho",
     // "Noto Serif CJK JP",
-  ), size: 12pt)
-
+  ), size: 12pt, lang: "ja")
+  // set text(font: "Linux Libertine", lang: "en")
   // Configure the page properties.
   set page(paper: paper-size, margin: (bottom: 1.75cm, top: 2.25cm))
 
@@ -381,7 +382,11 @@
 
   // Configure chapter headings.
   set heading(numbering: (..nums) => {
-    nums.pos().map(str).join(".") + " "
+    let ret = nums.pos().map(str).join(".")
+    if ret.len() > 1 {
+      ret += " "
+    }
+    return ret
   })
   show heading.where(level: 1): it => {
     pagebreak()
@@ -416,9 +421,54 @@
 
   // Start with a chapter outline.
   outline(title: "目次")
+
   set page(footer: [
     #align(center)[#counter(page).display("1")]
   ])
+
+  let ht-first = state("page-first-section", [])
+  let ht-last = state("page-last-section", [])
+
+  set page(
+    header: locate(
+      loc => [
+        // find first heading of level 1 on current page
+        #let firstheading = query(heading.where(level: 1), loc).find(h => h.location().page() == loc.page())
+        // find last heading of level 1 on current page
+        #let last-heading = query(heading.where(level: 1), loc).rev().find(h => h.location().page() == loc.page())
+        // test if the find function returned none (i.e. no headings on this page)
+        #{
+          if not firstheading == none {
+            ht-first.update(
+              [
+                // change style here if update needed section per section
+                #align(
+                  right,
+                )[第 #counter(heading).at(firstheading.location()).at(0) 章 - #firstheading.body]
+              ],
+            )
+            ht-last.update(
+              [
+                #align(
+                  right,
+                )[
+                  // change style here if update needed section per section
+                  第 #counter(heading).at(last-heading.location()).at(0) 章 - #last-heading.body
+                ]
+              ],
+            )
+            // if one or more headings on the page, use first heading
+            // change style here if update needed page per page
+            ht-first.display()
+          } else {
+            // no headings on the page, use last heading from variable
+            // change style here if update needed page per page
+            ht-last.display()
+          }
+        }
+      ],
+    ),
+  )
 
   counter(page).update(1)
 
@@ -429,6 +479,13 @@
   // Display bibliography.
   if bibliography-file != none {
     show bibliography: set text(12pt)
-    bibliography(bibliography-file, title: "参考文献", style: "american-physics-society")
+    show bibliography: set page(header: none)
+    bibliography(
+      bibliography-file,
+      title: "参考文献",
+      style: "american-physics-society",
+      full: true,
+    )
   }
 }
+
